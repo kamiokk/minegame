@@ -16,3 +16,5 @@ ehthumbs.db
 Desktop.ini
 /vendor/*
 !/vendor/vendor.json
+/.vscode
+test.go

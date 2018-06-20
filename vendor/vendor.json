@@ -9,6 +9,10 @@
 			"revisionTime": "2017-01-09T09:34:21Z"
 		},
 		{
+			"path": "github.com/gin-goinc/gin",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "OhdbpHPJ0mDO+KFwlIz2wTN9Rsg=",
 			"path": "github.com/gin-gonic/gin",
 			"revision": "d459835d2b077e44f7c9b453505ee29881d5d12d",
@@ -55,6 +59,24 @@
 			"path": "github.com/gomodule/redigo/redis",
 			"revision": "bb5990dc771ab24e169aaea90ee3b9ad50cffce9",
 			"revisionTime": "2018-06-01T13:19:09Z"
+		},
+		{
+			"checksumSHA1": "e6mnn97t3gIzsS8S9CmxecG5/68=",
+			"path": "github.com/jinzhu/gorm",
+			"revision": "82eb9f8a5bbb5e6b929d2f0ae5b934e6a253f94e",
+			"revisionTime": "2018-05-12T06:29:00Z"
+		},
+		{
+			"checksumSHA1": "w5/naAzcG0+g6aYx63/of1Wbgqw=",
+			"path": "github.com/jinzhu/gorm/dialects/mysql",
+			"revision": "82eb9f8a5bbb5e6b929d2f0ae5b934e6a253f94e",
+			"revisionTime": "2018-05-12T06:29:00Z"
+		},
+		{
+			"checksumSHA1": "mfb/EusMwfajCPq0lwLWM/pvqI4=",
+			"path": "github.com/jinzhu/inflection",
+			"revision": "04140366298a54a039076d798123ffa108fff46c",
+			"revisionTime": "2018-03-08T03:36:59Z"
 		},
 		{
 			"checksumSHA1": "kum8izZy1+pVfDiApW5hT2HoH1w=",
