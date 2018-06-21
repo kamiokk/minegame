@@ -9,7 +9,7 @@ func Routers() *gin.Engine {
 	groupUser := router.Group("/user")
 	{
 		groupUser.POST("/login",login)
-		groupUser.GET("/register",register)
+		groupUser.POST("/register",register)
 	}
 	return router
 }

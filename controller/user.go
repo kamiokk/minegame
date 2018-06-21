@@ -1,9 +1,7 @@
 package controller
 
 import (
-	"fmt"
 	"log"
-	"crypto/sha1"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,9 +10,17 @@ import (
 	"github.com/kamiokk/minegame/model"
 )
 
+// Login post model
 type Login struct {
 	Account string `json:"account" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+// Register post model
+type Register struct {
+	Account string `json:"account" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	PwdConf string `json:"pwd_conf" binding:"required,eqfield=Password"`
 }
 
 func login(c *gin.Context) {
@@ -25,22 +31,37 @@ func login(c *gin.Context) {
 		if user.ID == 0 {
 			c.JSON(http.StatusOK, gin.H{"code": 0,"msg": "user not found"})
 		} else {
-			s1 := sha1.New()
-			s1.Write([]byte(json.Password + "Secret@mine@2018" + user.PwdSalt))
-			encrypt := fmt.Sprintf("%x",s1.Sum(nil))
-			log.Println(user.Password)
-			log.Println(encrypt)
-			if encrypt == user.Password {
+			if model.EncryptUserPassword(json.Password,user.PwdSalt) == user.Password {
 				c.JSON(http.StatusOK, gin.H{"code": 1,"msg": "you are " + user.Account})
 			} else {
 				c.JSON(http.StatusOK, gin.H{"code": 0,"msg": "password wrong"})
 			}
 		}
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 0})
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"code": 0,"msg": "error"})
 	}
 }
 
 func register(c *gin.Context) {
-	c.String(http.StatusOK,"this is register interface.")
+	var json Register
+	if err := c.ShouldBindWith(&json,binding.JSON); err == nil {
+		var user model.User
+		(&user).GetByAccount(json.Account)
+		if user.ID == 0 {
+			user.Account = json.Account
+			user.LastLoginIP = c.ClientIP()
+			(&user).Create(json.Password)
+			if user.ID > 0 {
+				c.JSON(http.StatusOK, gin.H{"code": 1,"msg": "succeed"})
+			} else {
+				c.JSON(http.StatusOK, gin.H{"code": 0,"msg": "create failed"})
+			}
+		} else {
+			c.JSON(http.StatusOK, gin.H{"code": 0,"msg": "user exists"})
+		}
+	} else {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"code": 0})
+	}
 }
