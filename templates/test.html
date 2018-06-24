@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="static/css/index.css">
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/vue.js"></script>
+    <script src="static/js/common.js"></script>
+</head>
+
+<body>
+    <button onclick="checkAccountAvailable()">CheckAccountAvailable</button>
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+    <button onclick="info()">UserInfo</button>
+
+</body>
+
+<script>
+    var callback = function (json) {
+        console.log(json);
+    }
+    function checkAccountAvailable() {
+        API.checkAccountAvailable("kamiokk", callback);
+    }
+    function register() {
+        API.register("kamiokk", "123456", "123456", callback);
+    }
+    function login() {
+        API.login("kamiokk", "123456", callback);
+    }
+    function logout() {
+        API.logout(callback);
+    }
+    function info() {
+        API.userInfo(callback);
+    }
+</script>
+
+</html>

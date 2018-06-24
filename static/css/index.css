@@ -1,0 +1,83 @@
+/** mine game style sheet **/
+div {
+    padding-left: 0px;
+    padding-right: 0px;
+}
+a{
+  outline-style: none;
+  text-decoration: none;
+  color:whitesmoke;
+}
+a:hover{
+  outline-style: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+a:focus{
+  outline-style: none;
+}
+::-moz-placeholder {
+  color: #bfbfbf;
+  font-size: 12px;
+}
+::-webkit-input-placeholder {
+  color:#bfbfbf;
+  font-size: 12px;
+}
+:-ms-input-placeholder {
+  color:#bfbfbf;
+  font-size: 12px;
+}
+
+.banner {
+    padding: 0;
+    line-height: 40px;
+    height: 40px;
+    margin: 0 auto;
+    text-align: center;
+    color: whitesmoke;
+    background-color: #f6253a;
+}
+
+ul.footer {
+    list-style: none;
+    height: 50px;
+    line-height: 50px;
+    background-color: #434343;
+    color: whitesmoke;
+    position: fixed;
+    bottom: 0;
+    padding: 0;
+    width: 100%;
+    margin:0;
+}
+
+ul.footer > li {
+    float: left;
+    text-align: center;
+    width: 20%;
+    display: block;
+    font-size: 12px;
+}
+
+ul.footer > li.active {
+    background-color: #f6253a;
+}
+
+div.login-register {
+    margin: 100px auto;
+    padding: 20px;
+}
+
+div.login-register > button.btn-register {
+    width: 100%;
+    background-color: #f6253a;
+    color: whitesmoke;
+}
+
+div.login-register > button.btn-login {
+    margin-top: 54px;
+    width: 100%;
+    background-color: #f6253a;
+    color: whitesmoke;
+}
