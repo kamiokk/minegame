@@ -11,7 +11,7 @@
 </head>
 
 <body>
-    <div class="banner">注册账号</div>
+    <div class="banner">登录帐号</div>
 
     <div class="login-register">
         <div class="form-group">
@@ -49,6 +49,13 @@
     <script src="https://cdn.bootcss.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
     <script src="../../static/js/common.js"></script>
     <script>
+        $(document).ready(function () {
+            API.userInfo(function (result) {
+                if (result.code == 1) {
+                    location.href = "index.html";
+                }
+            });
+        });
         function login() {
             API.login($("#account").val(), $("#password").val(), function (result) {
                 if (result.code == 1) {

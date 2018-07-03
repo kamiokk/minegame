@@ -1,12 +1,16 @@
 package main
 
 import (
-	"github.com/kamiokk/minegame/helper/mysql"
-	"github.com/kamiokk/minegame/controller"
+    "github.com/kamiokk/minegame/helper/mysql"
+    redisHelper "github.com/kamiokk/minegame/helper/redis"
+    "github.com/kamiokk/minegame/controller"
 )
 
 func main()  {
-	defer mysql.DBInstance().Close()
-	router := controller.Routers()
-	router.Run(":80")
+    mysql.InitHelper()
+    defer mysql.EndHelper()
+    redisHelper.InitHelper()
+    defer redisHelper.EndHelper()
+    router := controller.Routers()
+    router.Run(":80")
 }

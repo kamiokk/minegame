@@ -38,5 +38,18 @@ var API = {
     },
     userInfo: function (callback) {
         this.requestJSON("/user/info", null, callback)
+    },
+    giveOut: function (room, mine, callback) {
+        data = {
+            room: parseInt(room),
+            mine: parseInt(mine)
+        }
+        this.requestJSON("/game/giveOut", data, callback)
+    },
+    gain: function (id) {
+        data = {
+            id: parseInt(id)
+        }
+        this.requestJSON("/game/gain", data, callback)
     }
 }
