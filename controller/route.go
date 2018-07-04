@@ -19,7 +19,7 @@ func Routers() *gin.Engine {
 
     groupGame := router.Group("/game",checkLogin())
     {
-        groupGame.GET("/poll",poll)
+        groupGame.POST("/poll",poll)
 		groupGame.POST("/giveOut",giveOut)
 		groupGame.POST("/gain",gain)
     }

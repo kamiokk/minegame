@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"math"
     "fmt"
     "time"
     "math/rand"
@@ -14,11 +15,16 @@ import (
 )
 
 const (
-    userPointLockPrefix = "lock:point:"
-    gainRedPackLockPrefix = "lock:redpack:"
+    userPointLockKeyFmt = "lock:point:%d"
+    gainRedPackLockKeyFmt = "lock:redpack:%d"
+    pollLockKeyFmt = "lock:poll:%d"
+    packSetKeyFmt = "set:pack:%d"
+    checkGainKeyFmt = "gain:%d:%d"
+    redpackKeyFmt = "redpack:%d"
 
     minRedPackGainPoint uint = 25
     platformPercentage uint = 1
+    pollTimeout time.Duration = 60 * time.Second
 )
 
 // GiveRedPack model
@@ -39,7 +45,69 @@ type RedPack struct {
 }
 
 func poll(c *gin.Context) {
-    c.JSON(http.StatusOK,gin.H{"code":CodeSucceed,"msg":MsgSucceed})
+    var param struct {
+        Timestamp int64 `json:"t"`
+        Room uint `json:"room" binding:"required,min=1,max=6"`
+    }
+    if err := c.ShouldBindWith(&param,binding.JSON); err != nil {
+        c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgBindJSONErr})
+        return
+    }
+    if param.Timestamp > time.Now().Unix() {
+        c.JSON(http.StatusOK,gin.H{"code":CodeSucceed,"redpacks":nil,"t":param.Timestamp,"roomID":param.Room})
+        return
+    }
+
+    session := startSession(c)
+    userID,_ := session.GetUInt("userID")
+    rc := redisHelper.GetConn(c)
+    lockKey := fmt.Sprintf(pollLockKeyFmt,userID)
+    lockID := redisHelper.RandLockId()
+    lockOk := redisHelper.GetLockByTimeout(rc,time.Second * 5,lockKey,lockID,uint(pollTimeout + 10))
+    if !lockOk {
+		logHelper.Warn(c,"GetLockFailed userID:%d lockKey:%s lockID:%v",userID,lockKey,lockID)
+        c.JSON(http.StatusOK,gin.H{"code":CodeEnterDupRoom,"msg":MsgEnterDupRoom})
+        return
+    }
+    defer redisHelper.ReleaseLock(rc,lockKey,lockID)
+
+    startAt := time.Now()
+    if param.Timestamp > 0 && math.Abs(float64(startAt.Unix() - param.Timestamp)) < 10 {
+        startAt = time.Unix(param.Timestamp,0)
+    }
+    rangeFrom := startAt.Unix()
+    var rangeTo int64
+    for time.Since(startAt) < pollTimeout {
+        time.Sleep(time.Second * 1)
+        rangeTo = time.Now().Unix()
+        logHelper.Debug(c,"Polling: %d %d",rangeFrom,rangeTo)
+        if packIds,err := redis.Int64s(rc.Do("zrangebyscore",fmt.Sprintf(packSetKeyFmt,param.Room),rangeFrom,rangeTo));err == nil && len(packIds) > 0 {
+            logHelper.Debug(c,"Polling,packIds:%v",packIds)
+            checkGainKeys := make([]interface{}, len(packIds))
+            for i,packId := range packIds {
+                checkGainKeys[i] = fmt.Sprintf(checkGainKeyFmt,userID,packId)
+            }
+            output := make(map[int64]RedPack, 0)
+            if checkGain,err := redis.Int64s(rc.Do("mget",checkGainKeys...));err == nil {
+                for i,gained := range checkGain {
+                    if gained == 0 {
+                        var rp RedPack
+                        if redisHelper.FetchStruct(rc,fmt.Sprintf(redpackKeyFmt,packIds[i]),&rp) == nil {
+                            output[packIds[i]] = rp
+                        }
+                    }
+                }
+            }
+            logHelper.Debug(c,"Polling,output:%v",output)
+            if len(output) > 0 {
+                c.JSON(http.StatusOK,gin.H{"code":CodeSucceed,"redpacks":output,"t":(rangeTo+1),"roomID":param.Room})
+                return
+            }
+        }
+        rangeFrom = time.Now().Unix()
+    }
+    c.JSON(http.StatusOK,gin.H{"code":CodeSucceed,"redpacks":nil,"t":(rangeTo+1),"roomID":param.Room})
+    return
 }
 
 func giveOut(c *gin.Context)  {
@@ -64,7 +132,7 @@ func giveOut(c *gin.Context)  {
         return
     }
     rc := redisHelper.GetConn(c)
-    lockKey := fmt.Sprintf(userPointLockPrefix + "%d",userID)
+    lockKey := fmt.Sprintf(userPointLockKeyFmt,userID)
     lockID := redisHelper.RandLockId()
     lockOk := redisHelper.GetLockByTimeout(rc,time.Second * 5,lockKey,lockID,10)
     if !lockOk {
@@ -107,13 +175,20 @@ func giveOut(c *gin.Context)  {
         RemainPoint: pointAfterPer,
         RemainNum: giveOutNum,
     }
-    rpCacheKey := fmt.Sprintf("redpack:%d",rpModel.ID)
+    rpCacheKey := fmt.Sprintf(redpackKeyFmt,rpModel.ID)
     if err := redisHelper.SetStructExp(rc,rpCacheKey,&rp,86400 * 2); err != nil {
 		logHelper.Error(c,"RedisSetError val:%v",rp)
 		(&p).ModifyPoint("+",float64(giveOutPoint) / 100)
 		c.JSON(http.StatusOK, gin.H{"code": CodeFailed,"msg": MsgError})
 		return
-	}
+    }
+    if _,err := rc.Do("zadd",fmt.Sprintf(packSetKeyFmt,json.Room),time.Now().Unix(),rpModel.ID);err != nil {
+        logHelper.Error(c,"RedisZaddError! score:%d value:%d",time.Now().Unix(),rpModel.ID)
+        rc.Do("del",rpCacheKey)
+        (&p).ModifyPoint("+",float64(giveOutPoint) / 100)
+		c.JSON(http.StatusOK, gin.H{"code": CodeFailed,"msg": MsgError})
+		return
+    }
     c.JSON(http.StatusOK, gin.H{"code": CodeSucceed,"id": rpModel.ID})
 }
 
@@ -126,7 +201,7 @@ func gain(c *gin.Context) {
     rc := redisHelper.GetConn(c)
     // get redpack info
     var redpack RedPack
-    rpCacheKey := fmt.Sprintf("redpack:%d",param.ID)
+    rpCacheKey := fmt.Sprintf(redpackKeyFmt,param.ID)
     if err := redisHelper.FetchStruct(rc,rpCacheKey,&redpack);err != nil {
         logHelper.Warn(c,"FetchRedPackFailed ID:%d error:%v",param.ID,err)
         c.JSON(http.StatusOK,gin.H{"code":CodeRedPackRunOut,"msg":MsgRedPackRunOut})
@@ -141,7 +216,7 @@ func gain(c *gin.Context) {
     //lock user's point and check if user can afford loss
     session := startSession(c)
     userID,_ := session.GetUInt("userID")
-    userLockKey := fmt.Sprintf(userPointLockPrefix + "%d",userID)
+    userLockKey := fmt.Sprintf(userPointLockKeyFmt,userID)
     userLockID := redisHelper.RandLockId()
     userLockOk := redisHelper.GetLockByTimeout(rc,time.Second * 5,userLockKey,userLockID,15)
     if !userLockOk {
@@ -158,7 +233,7 @@ func gain(c *gin.Context) {
     }
 
     // check if the user already get this redpack
-    checkUserGainKey := fmt.Sprintf("gain:%d:%d",userID,param.ID)
+    checkUserGainKey := fmt.Sprintf(checkGainKeyFmt,userID,param.ID)
     if check,err := redis.Int(rc.Do("incr",checkUserGainKey));err != nil {
         logHelper.Warn(c,"IncrFailed userID:%d redpackID:%d error:%v",userID,param.ID,err)
         c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
@@ -173,7 +248,7 @@ func gain(c *gin.Context) {
     }
 
     // lock this redpack
-    lockKey := fmt.Sprintf(gainRedPackLockPrefix + "%d",param.ID)
+    lockKey := fmt.Sprintf(gainRedPackLockKeyFmt,param.ID)
     lockID := redisHelper.RandLockId()
     lockOk := redisHelper.GetLockByTimeout(rc,time.Second * 5,lockKey,lockID,10)
     if !lockOk {

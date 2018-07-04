@@ -21,6 +21,7 @@ const (
     CodeUnAffordRedPack = 41
     CodeGained = 42
     CodeHitMine = 43
+    CodeEnterDupRoom = 44
 )
 
 const (
@@ -37,6 +38,7 @@ const (
     MsgUnAffordRedPack = "can not afford red pack"
     MsgGained = "already gained"
     MsgHitMine = "hit the mine"
+    MsgEnterDupRoom = "already enter another room"
 )
 
 var roomConfigOnce sync.Once

@@ -1,5 +1,6 @@
 var API = {
     host: "",
+    pollSpace: 500,
     requestJSON: function(path, data, callback) {
         $.ajax({
             url: API.host + path,
@@ -51,5 +52,25 @@ var API = {
             id: parseInt(id)
         }
         this.requestJSON("/game/gain", data, callback)
+    },
+    poll: function (roomID,t) {
+        roomID = parseInt(roomID)
+        t = parseInt(t)
+        if (t > (new Date()).getTime() / 1000) {
+            setTimeout(API.poll, API.pollSpace, roomID, t)
+            return
+        }
+        data = {
+            room: roomID,
+            t: t
+        }
+        this.requestJSON("/game/poll", data, function(result) {
+            if (result.code == 1) {
+                console.log(result)
+                setTimeout(API.poll, API.pollSpace, result.roomID, result.t)
+            } else {
+                alert("房间正忙，请稍候再试！")
+            }
+        })
     }
 }
