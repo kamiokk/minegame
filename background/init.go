@@ -1,5 +1,6 @@
 package background
 
-func initBackground() {
+// InitBackground init background task
+func InitBackground() {
 	go HandleBalanceLogQueue()
 }

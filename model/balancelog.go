@@ -10,6 +10,7 @@ type BalanceLog struct {
 	ID uint
 	EventID int
     UserID uint `gorm:"column:user_id"`
+    RedpackID uint `gorm:"column:redpack_id"`
     Value float64
     CreatedAt *time.Time
     UpdatedAt *time.Time
@@ -18,7 +19,7 @@ type BalanceLog struct {
 
 // TableName return user table name
 func (BalanceLog) TableName() string {
-    return "mine_banlance_log"
+    return "mine_balance_log"
 }
 
 // Create add log

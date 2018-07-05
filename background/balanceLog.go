@@ -13,16 +13,18 @@ type balance struct {
 	EventID int
 	Value float64
 	Timestamp int64
+	RedpackID uint
 }
 
 // HandleBalanceLogQueue adding log to db
 func HandleBalanceLogQueue() {
+	logHelper.DebugNoContext("HandleBalanceLogQueue Started.")
 	rc := redisHelper.Pool().Get()
 	sleepDuration := time.Millisecond * 10
 	for {
 		time.Sleep(sleepDuration)
 		var b balance
-		popSucceed,err := redisHelper.LpopStruct(rc,"q:balance",b)
+		popSucceed,err := redisHelper.LpopStruct(rc,"q:balance",&b)
 		if !popSucceed {
 			if sleepDuration < time.Second {
 				sleepDuration += time.Millisecond * 10
@@ -39,6 +41,7 @@ func HandleBalanceLogQueue() {
 			EventID: b.EventID,
 			UserID: b.UserID,
 			Value: b.Value,
+			RedpackID: b.RedpackID,
 		}
 		log.Create(b.Timestamp)
 	}

@@ -176,7 +176,6 @@ func LpushStruct(c redis.Conn,key string,value interface{}) error {
 // LpopStruct pop and unserialize
 func LpopStruct(c redis.Conn,key string,out interface{}) (bool,error) {
     if reply,err := redis.Bytes(c.Do("lpop",key)); err != nil {
-		logHelper.DebugNoContext("LpopStructError:%v",err)
         return false,err
     } else {
         if len(reply) == 0 {

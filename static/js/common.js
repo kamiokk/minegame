@@ -25,33 +25,33 @@ var API = {
             password:password,
             pwd_conf:passwordConf
         }
-        this.requestJSON("/user/register", data, callback)
+        API.requestJSON("/user/register", data, callback)
     },
     login: function (account, password, callback) {
         data = {
             account: account,
             password: password
         }
-        this.requestJSON("/user/login", data, callback)
+        API.requestJSON("/user/login", data, callback)
     },
     logout: function (callback) {
-        this.requestJSON("/user/logout", null, callback)
+        API.requestJSON("/user/logout", null, callback)
     },
     userInfo: function (callback) {
-        this.requestJSON("/user/info", null, callback)
+        API.requestJSON("/user/info", null, callback)
     },
     giveOut: function (room, mine, callback) {
         data = {
             room: parseInt(room),
             mine: parseInt(mine)
         }
-        this.requestJSON("/game/giveOut", data, callback)
+        API.requestJSON("/game/giveOut", data, callback)
     },
     gain: function (id) {
         data = {
             id: parseInt(id)
         }
-        this.requestJSON("/game/gain", data, callback)
+        API.requestJSON("/game/gain", data, callback)
     },
     poll: function (roomID,t) {
         roomID = parseInt(roomID)
@@ -64,7 +64,7 @@ var API = {
             room: roomID,
             t: t
         }
-        this.requestJSON("/game/poll", data, function(result) {
+        API.requestJSON("/game/poll", data, function(result) {
             if (result.code == 1) {
                 console.log(result)
                 setTimeout(API.poll, API.pollSpace, result.roomID, result.t)
