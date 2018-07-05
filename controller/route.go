@@ -4,6 +4,7 @@ import (
     "github.com/gin-gonic/gin"
 )
 
+// Routers return gin routers
 func Routers() *gin.Engine {
     router := gin.Default()
     router.Use(handlerEnd())

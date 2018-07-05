@@ -15,17 +15,30 @@ import (
 )
 
 const (
+	balanceEventCharge = 1
+	balanceEventGiveOut = 2
+	balanceEventGain = 3
+	balanceEventHitMine = 4
+
     userPointLockKeyFmt = "lock:point:%d"
     gainRedPackLockKeyFmt = "lock:redpack:%d"
     pollLockKeyFmt = "lock:poll:%d"
     packSetKeyFmt = "set:pack:%d"
     checkGainKeyFmt = "gain:%d:%d"
     redpackKeyFmt = "redpack:%d"
+    balanceLogQueue = "q:balance"
 
     minRedPackGainPoint uint = 25
     platformPercentage uint = 1
     pollTimeout time.Duration = 60 * time.Second
 )
+
+type balance struct {
+	UserID uint
+	EventID int
+	Value float64
+	Timestamp int64
+}
 
 // GiveRedPack model
 type GiveRedPack struct {
@@ -81,19 +94,19 @@ func poll(c *gin.Context) {
         time.Sleep(time.Second * 1)
         rangeTo = time.Now().Unix()
         logHelper.Debug(c,"Polling: %d %d",rangeFrom,rangeTo)
-        if packIds,err := redis.Int64s(rc.Do("zrangebyscore",fmt.Sprintf(packSetKeyFmt,param.Room),rangeFrom,rangeTo));err == nil && len(packIds) > 0 {
-            logHelper.Debug(c,"Polling,packIds:%v",packIds)
-            checkGainKeys := make([]interface{}, len(packIds))
-            for i,packId := range packIds {
-                checkGainKeys[i] = fmt.Sprintf(checkGainKeyFmt,userID,packId)
+        if packIDs,err := redis.Int64s(rc.Do("zrangebyscore",fmt.Sprintf(packSetKeyFmt,param.Room),rangeFrom,rangeTo));err == nil && len(packIDs) > 0 {
+            logHelper.Debug(c,"Polling,packIDs:%v",packIDs)
+            checkGainKeys := make([]interface{}, len(packIDs))
+            for i,packID := range packIDs {
+                checkGainKeys[i] = fmt.Sprintf(checkGainKeyFmt,userID,packID)
             }
             output := make(map[int64]RedPack, 0)
             if checkGain,err := redis.Int64s(rc.Do("mget",checkGainKeys...));err == nil {
                 for i,gained := range checkGain {
                     if gained == 0 {
                         var rp RedPack
-                        if redisHelper.FetchStruct(rc,fmt.Sprintf(redpackKeyFmt,packIds[i]),&rp) == nil {
-                            output[packIds[i]] = rp
+                        if redisHelper.FetchStruct(rc,fmt.Sprintf(redpackKeyFmt,packIDs[i]),&rp) == nil {
+                            output[packIDs[i]] = rp
                         }
                     }
                 }
@@ -159,7 +172,7 @@ func giveOut(c *gin.Context)  {
         c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
         return
     }
-    if ok := (&p).ModifyPoint("-",float64(giveOutPoint) / 100);!ok {
+    if ok := (&p).ModifyPoint("-",rpModel.Value);!ok {
 		rpModel.IsDeleted = 1
 		rpModel.Update()
         c.JSON(http.StatusOK,gin.H{"code":CodePointNotEngouth,"msg":MsgPointNotEngouth})
@@ -178,17 +191,18 @@ func giveOut(c *gin.Context)  {
     rpCacheKey := fmt.Sprintf(redpackKeyFmt,rpModel.ID)
     if err := redisHelper.SetStructExp(rc,rpCacheKey,&rp,86400 * 2); err != nil {
 		logHelper.Error(c,"RedisSetError val:%v",rp)
-		(&p).ModifyPoint("+",float64(giveOutPoint) / 100)
+		(&p).ModifyPoint("+",rpModel.Value)
 		c.JSON(http.StatusOK, gin.H{"code": CodeFailed,"msg": MsgError})
 		return
     }
     if _,err := rc.Do("zadd",fmt.Sprintf(packSetKeyFmt,json.Room),time.Now().Unix(),rpModel.ID);err != nil {
         logHelper.Error(c,"RedisZaddError! score:%d value:%d",time.Now().Unix(),rpModel.ID)
         rc.Do("del",rpCacheKey)
-        (&p).ModifyPoint("+",float64(giveOutPoint) / 100)
+        (&p).ModifyPoint("+",rpModel.Value)
 		c.JSON(http.StatusOK, gin.H{"code": CodeFailed,"msg": MsgError})
 		return
     }
+    modifyBalanceLog(rc,userID,balanceEventGiveOut,rpModel.Value * -1)
     c.JSON(http.StatusOK, gin.H{"code": CodeSucceed,"id": rpModel.ID})
 }
 
@@ -234,18 +248,16 @@ func gain(c *gin.Context) {
 
     // check if the user already get this redpack
     checkUserGainKey := fmt.Sprintf(checkGainKeyFmt,userID,param.ID)
-    if check,err := redis.Int(rc.Do("incr",checkUserGainKey));err != nil {
-        logHelper.Warn(c,"IncrFailed userID:%d redpackID:%d error:%v",userID,param.ID,err)
-        c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
-        return
-    } else {
-        if check == 1 {
-            rc.Do("expire",checkUserGainKey,86400 * 2)
+    if checkGain,err := redis.Int(rc.Do("incr",checkUserGainKey));err != nil || checkGain != 1 {
+        if err != nil {
+            logHelper.Warn(c,"IncrFailed userID:%d redpackID:%d error:%v",userID,param.ID,err)
+            c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
         } else {
             c.JSON(http.StatusOK,gin.H{"code":CodeGained,"msg":MsgGained})
-            return
         }
+        return
     }
+    rc.Do("expire",checkUserGainKey,86400 * 2)
 
     // lock this redpack
     lockKey := fmt.Sprintf(gainRedPackLockKeyFmt,param.ID)
@@ -287,16 +299,18 @@ func gain(c *gin.Context) {
         }
         redpack.RemainPoint = redpack.RemainPoint - gainPoint
 	}
-	hitMine := checkHitMine(redpack.Mine,gainPoint)
+    hitMine := checkHitMine(redpack.Mine,gainPoint)
+    lossPayFloat := float64(redpack.LossPay) / 100
+    gainPointFloat := float64(gainPoint) / 100
     if hitMine {
-        if err := model.TransferPoint(userID,redpack.UserID,float64(redpack.LossPay) / 100);err != nil {
+        if err := model.TransferPoint(userID,redpack.UserID,lossPayFloat);err != nil {
 			logHelper.Warn(c,"TransferPointError err:%v",err)
 			rc.Do("decr",checkUserGainKey)
             c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
             return
         }
     } else {
-		if ok := (&p).ModifyPoint("+",float64(gainPoint) / 100);!ok {
+		if ok := (&p).ModifyPoint("+",gainPointFloat);!ok {
 			logHelper.Warn(c,"GainPointError userID:%d gainPoint:%d redpack:%v",userID,gainPoint,redpack)
 			rc.Do("decr",checkUserGainKey)
 			c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
@@ -306,17 +320,46 @@ func gain(c *gin.Context) {
 	if err := redisHelper.SetStruct(rc,rpCacheKey,&redpack);err != nil {
 		logHelper.Warn(c,"RedisSetError userID:%d gainPoint:%d redpack:%v error:%v",userID,gainPoint,redpack,err)
 		if hitMine {
-			model.TransferPoint(redpack.UserID,userID,float64(redpack.LossPay) / 100)
+			model.TransferPoint(redpack.UserID,userID,lossPayFloat)
 		} else {
-			(&p).ModifyPoint("-",float64(gainPoint) / 100)
+			(&p).ModifyPoint("-",gainPointFloat)
 		}
 		rc.Do("decr",checkUserGainKey)
 		c.JSON(http.StatusOK,gin.H{"code":CodeFailed,"msg":MsgError})
 		return
-	}
+    }
+    //finaly success
+    if hitMine {
+        transferLog(rc,userID,redpack.UserID,lossPayFloat)
+    } else {
+        modifyBalanceLog(rc,userID,balanceEventGain,gainPointFloat)
+    }
 	c.JSON(http.StatusOK, gin.H{"code": CodeSucceed,"gain": gainPoint,"hit": hitMine,"loss": redpack.LossPay})
 }
 
 func checkHitMine(mineNumber,gainPoint uint) bool {
 	return gainPoint % 10 == mineNumber
+}
+
+func transferLog(rc redis.Conn,srcID,dstID uint,value float64) {
+    balanceLog := balance{
+        UserID: srcID,
+        EventID: balanceEventHitMine,
+        Value: (value * -1),
+        Timestamp: time.Now().Unix(),
+    }
+    redisHelper.LpushStruct(rc,balanceLogQueue,&balanceLog)
+    balanceLog.UserID = dstID
+    balanceLog.Value = value
+    redisHelper.LpushStruct(rc,balanceLogQueue,&balanceLog)
+}
+
+func modifyBalanceLog(rc redis.Conn,userID uint,eventID int,value float64) {
+    balanceLog := balance{
+        UserID: userID,
+        EventID: eventID,
+        Value: value,
+        Timestamp: time.Now().Unix(),
+    }
+    redisHelper.LpushStruct(rc,balanceLogQueue,&balanceLog)
 }

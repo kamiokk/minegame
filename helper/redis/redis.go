@@ -23,11 +23,12 @@ var pool *redis.Pool
 var locker *redis.Script
 var unLocker *redis.Script
 
-func InitHelper() {
+// InitHelper init this helper
+func InitHelper(maxIdle int) {
     host := os.Getenv("REDIS_HOST")
     databaseName := os.Getenv("REDIS_PORT")
     pool = &redis.Pool {
-        MaxIdle: 30,
+        MaxIdle: maxIdle,
         IdleTimeout: 240 * time.Second,
         Dial: func () (redis.Conn, error) { return redis.Dial("tcp", host + ":" + databaseName ) },
     }
@@ -40,10 +41,12 @@ func InitHelper() {
     c.Close()
 }
 
+// Pool get pool instance
 func Pool() *redis.Pool {
     return pool
 }
 
+// GetConn get redis.Conn
 func GetConn(c *gin.Context) redis.Conn {
     rc,ok := c.Get("__redisConn")
     if ok {
@@ -59,6 +62,7 @@ func GetConn(c *gin.Context) redis.Conn {
     return conn
 }
 
+// CloseConn redis.Conn.Close()
 func CloseConn(c *gin.Context) {
     rc,ok := c.Get("__redisConn")
     if ok {
@@ -70,10 +74,13 @@ func CloseConn(c *gin.Context) {
     }
 }
 
+// EndHelper close the pool
 func EndHelper() {
     pool.Close()
 }
 
+
+// GetLockByTimeout get lock with timeout
 func GetLockByTimeout(c redis.Conn,timeout time.Duration,lockKey string,lockID int,lockTime uint) bool {
     var re string
     var err error
@@ -89,20 +96,39 @@ func GetLockByTimeout(c redis.Conn,timeout time.Duration,lockKey string,lockID i
     return re == "OK"
 }
 
+// ReleaseLock release lock by key & id
 func ReleaseLock(c redis.Conn,lockKey string,lockID int) {
     unLocker.Do(c,lockKey,lockID)
 }
 
+// RandLockId return pseudo-random int
 func RandLockId() int {
     return rand.Intn(1000000)
 }
 
+// Marshal serialize the struct object
+func Marshal(value interface{}) (jsonStr []byte,err error) {
+    if jsonStr,err = json.Marshal(value);err != nil {
+        logHelper.DebugNoContext("JsonEncodeFailed:%v",err)
+        return nil,err
+    }
+    return jsonStr,nil
+}
+
+// Unmarshal unserialize
+func Unmarshal(reply []byte,out interface{}) (err error) {
+    if err = json.Unmarshal(reply,out);err != nil {
+        logHelper.DebugNoContext("JsonDecodeFailed:%v",err)
+    }
+    return err
+}
+
+// SetStructExp serialize a sturct and set into redis with timeout
 func SetStructExp(c redis.Conn,key string,value interface{},expire int) error {
-    if jsonStr,err := json.Marshal(value);err != nil {
-        logHelper.DebugNoContext("SetStructExpError:%v",err)
+    if jsonStr,err := Marshal(value);err != nil {
         return err
     } else {
-        if _,err := c.Do("setex",key,expire,jsonStr);err != nil {
+        if _,err = c.Do("setex",key,expire,jsonStr);err != nil {
             logHelper.DebugNoContext("SetStructExpError:%v",err)
             return err
         }
@@ -110,28 +136,53 @@ func SetStructExp(c redis.Conn,key string,value interface{},expire int) error {
     return nil
 }
 
+// SetStruct serialize a sturct and set into redis
 func SetStruct(c redis.Conn,key string,value interface{}) error {
-    if jsonStr,err := json.Marshal(value);err != nil {
-        logHelper.DebugNoContext("SetStructError:%v",err)
+    if jsonStr,err := Marshal(value);err != nil {
         return err
     } else {
-        if _,err := c.Do("set",key,jsonStr);err != nil {
-            logHelper.DebugNoContext("SetStructError:%v",err)
+        if _,err = c.Do("set",key,jsonStr);err != nil {
+            logHelper.DebugNoContext("SetStructExpError:%v",err)
             return err
         }
     }
     return nil
 }
 
+// FetchStruct get and unserialize
 func FetchStruct(c redis.Conn,key string,out interface{}) error {
-    if reply,err := redis.Bytes(c.Do("get",key)); err != nil {
+    var reply []byte
+    var err error
+    if reply,err = redis.Bytes(c.Do("get",key)); err != nil {
 		logHelper.DebugNoContext("FetchStructError:%v",err)
         return err
+    }
+    return Unmarshal(reply,out)
+}
+
+// LpushStruct serialize a sturct and push into queue
+func LpushStruct(c redis.Conn,key string,value interface{}) error {
+    if jsonStr,err := Marshal(value);err != nil {
+        return err
     } else {
-        if err := json.Unmarshal(reply,out);err != nil {
-			logHelper.DebugNoContext("FetchStructError:%v",err)
+        if _,err = c.Do("lpush",key,jsonStr);err != nil {
+            logHelper.DebugNoContext("LpushStructError:%v",err)
             return err
         }
     }
     return nil
+}
+
+// LpopStruct pop and unserialize
+func LpopStruct(c redis.Conn,key string,out interface{}) (bool,error) {
+    if reply,err := redis.Bytes(c.Do("lpop",key)); err != nil {
+		logHelper.DebugNoContext("LpopStructError:%v",err)
+        return false,err
+    } else {
+        if len(reply) == 0 {
+            return false,nil
+        }
+        err = Unmarshal(reply,out)
+        return true,err
+    }
 }

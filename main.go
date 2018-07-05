@@ -9,7 +9,7 @@ import (
 func main()  {
     mysql.InitHelper()
     defer mysql.EndHelper()
-    redisHelper.InitHelper()
+    redisHelper.InitHelper(300)
     defer redisHelper.EndHelper()
     router := controller.Routers()
     router.Run(":80")

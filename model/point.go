@@ -3,8 +3,8 @@ package model
 import (
 	"fmt"
     "time"
-    "github.com/jinzhu/gorm"
-    "github.com/kamiokk/minegame/helper/mysql"
+	"github.com/jinzhu/gorm"
+	"github.com/kamiokk/minegame/helper/mysql"
 )
 
 // Point model of user's point
@@ -39,7 +39,7 @@ func (p *Point) ModifyPoint(op string,value float64) bool {
 	return affected > 0
 }
 
-// Transfer Point from src user to dst user
+// TransferPoint from src user to dst user
 func TransferPoint(srcID,dstID uint,value float64) error {
 	// Note the use of tx as the database handle once you are within a transaction
 	tx := mysql.DBInstance().Begin()
@@ -65,5 +65,6 @@ func TransferPoint(srcID,dstID uint,value float64) error {
 		return fmt.Errorf("IncreasePointFailed UID:%d Value:%f Error:%v",dstID,value,tx.Error)
 	}
 
-	return tx.Commit().Error
+	err := tx.Commit().Error
+	return err
 }
