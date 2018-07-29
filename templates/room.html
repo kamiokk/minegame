@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, minimum-scale=0.5, user-scalable=no">
+    <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/index.css">
+</head>
+
+<body>
+    <div class="banner room-banner">
+        <a href="index.html"><img src="static/imgs/back_btn.png"></a>
+        普通房间1（30金7包）
+    </div>
+    <div class="room-message"></div>
+    <div class="room-btn-bar">
+        <div style="padding: 12px 24px;" class="input-group">
+            <select class="custom-select" id="mine">
+                <option value="">请选择地雷数字</option>
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+            </select>
+            <div class="input-group-append"><button type="button" onclick="giveOut()" class="btn btn-red">发红包</button></div>
+            
+        </div>
+    </div>
+    <div class="popup-mask"></div>
+    <div class="redpack-popup">
+        <div>
+            <a class="close" href="javascript:void(0);" onclick="closeRedpack()"></a>
+            <a id="redpackOpenBtn" data-rid="" class="open" href="javascript:void(0);" onclick="openRedpack(this)"></a>
+            <span>恭喜发财，大吉大利</span>
+        </div>
+    </div>
+    <div class="grats-popup" data-point="2.33" onclick="closeGainResult(this)">
+        <img src="static/imgs/grats.png" alt="">
+    </div>
+    <div class="boom-popup" data-point="-2.33" onclick="closeGainResult(this)">
+        <img src="static/imgs/boom.png" alt="">
+    </div>
+    <div style="display:none;visibility:hidden;">
+        <div id="_tplRpBubble">
+            <div id="rpb$RID$" class="redpack-bubble r-$FLOAT$ clearfix">
+                <div class="avatar">
+                    <img src="static/imgs/avatar.jpg">
+                </div>
+                <div class="bubble" onclick="popRedpack(this)">
+                    <div class="bubble-top">
+                        <img src="static/imgs/redpack.jpg">
+                        <span>领取红包</span>
+                    </div>
+                    <div class="bubble-bottom">红包扫雷</div>
+                </div>
+            </div>
+        </div>
+        <div id="_tplMessage">
+            <div class="redpad-messge"><div>$MESSAGE$</div></div>
+        </div>
+    </div>
+    <script src="static/js/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/common.js"></script>
+    <script>
+        var roomID = 1
+        var roomFee = 30
+        var uinfo
+        var uinfoUpdateTime = (new Date()).getTime()
+        var bubbleHtml = ''
+        var localRedpacks = {}
+        $(document).ready(function () {
+            if(location.protocol == "file:")return
+            API.userInfo(function (result) {
+                if (result.code == 1) {
+                    uinfo = result;
+                    uinfoUpdateTime = (new Date()).getTime();
+                } else {
+                    location.href = "login.html";
+                }
+            })
+            API.pollCallback = function(result){
+                if (result.code == 1) {
+                    if (typeof result.redpacks != "undefined" && result.redpacks != null) {
+                        for (const rid in result.redpacks) {
+                            localRedpacks[rid] = result.redpacks[rid]
+                            var float = uinfo.id == result.redpacks[rid].UserID ? "right" : "left"
+                            appendBubble(rid, float)
+                        }
+                    }
+                    if (typeof result.ended != "undefined" && result.ended != null) {
+                        appendEndedPack(result.ended)
+                    }
+                } else {
+                    switch (result.code) {
+                        case 44:
+                            alert("您已经进入了其他房间，请先退出其他房间。")
+                            break;
+                        case -1:
+                            console.log("poll canceled.")
+                            break;
+                        default:
+                            console.log("poll failed.");
+                            console.log(result);
+                            break;
+                    }
+                    location.href = "index.html"
+                }
+            }
+            API.poll(roomID)
+        });
+        function popRedpack(obj) {
+            if ($(obj).parent().hasClass("redpack-bubble-gain")) {
+                return
+            }
+            var rid = $(obj).parent().attr("id").replace("rpb","")
+            $("#redpackOpenBtn").attr("data-rid", rid)
+            $(".popup-mask").css("visibility", "visible");
+            $(".redpack-popup").css("visibility", "visible");
+            $(".redpack-popup > div ").css("transform", "scale(1)");
+        }
+        function closeRedpack() {
+            $("#redpackOpenBtn").attr("data-rid", "")
+            $(".redpack-popup").css("visibility", "hidden");
+            $(".popup-mask").css("visibility","hidden");
+            $(".redpack-popup > div ").css("transform", "scale(0)");
+        }
+        function openRedpack(obj) {
+            var rid = $(obj).attr("data-rid")
+            if (!!localRedpacks[rid]) {
+                if (getUserPoint() < localRedpacks[rid].LossPay) {
+                    alert(MsgNotEnoughPoint)
+                    return
+                }
+                API.gain(rid, function (result) {
+                    if (result.code == 1) {
+                        $("#rpb"+rid).addClass("redpack-bubble-gain")
+                        $("#rpb"+rid).find(".bubble-top > span").text("红包已领取")
+                        var message = ""
+                        if (result.hit) {
+                            $(".boom-popup").attr("data-point", Utils.f2y(result.loss) * -1)
+                            message = "您踩中地雷，赔付了" + Utils.f2y(result.loss) + "金币"
+                            gainAnime("boom")
+                        } else {
+                            $(".grats-popup").attr("data-point", Utils.f2y(result.gain))
+                            message = "您领到了" + Utils.f2y(result.gain) + "金币"
+                            gainAnime("grats")
+                        }
+                        appendMessage(message)
+                    }
+                });
+            }
+        }
+        function getUserPoint(){
+            if ((new Date()).getTime() - uinfoUpdateTime > 60000) {
+                uinfoUpdateTime = (new Date()).getTime()
+                API.userInfo(function (result) {
+                    if (result.code == 1) {
+                        uinfo = result
+                    } else {
+                        alert("发生错误！")
+                        location.href = "login.html"
+                    }
+                });
+            }
+            return Utils.y2f(uinfo.Point)
+        }
+        function gainAnime(type) {
+            var id = "." + type + "-popup"
+            $(id).css("visibility", "visible")
+            $(id).css("transform", "scale(1)")
+        }
+        function closeGainResult(obj) {
+            var point = $(obj).attr("data-point")
+            if (!!point) {
+                point = parseFloat(point)
+                if (!isNaN(point)) {
+                    if (point > 0) {
+                        alert("恭喜你，领到了" + point + "金币")
+                    } else {
+                        alert("很遗憾，你踩到了地雷，损失了" + Math.abs(point) + "金币");
+                    }
+                }
+            }
+            $(obj).css("visibility", "hidden")
+            $(obj).css("transform", "scale(0)")
+            $(".redpack-popup").find("a.close").click()
+        }
+        function giveOut() {
+            var mineNum = parseInt($("#mine option:selected").val())
+            if (isNaN(mineNum) || mineNum > 9 || mineNum < 0) {
+                alert("请选择地雷数字")
+                return
+            }
+            if (getUserPoint() < roomFee) {
+                alert(MsgNotEnoughPoint)
+                return
+            }
+            API.giveOut(roomID,mineNum,function(result) {
+                if (result.code == 30) {
+                    alert(MsgNotEnoughPoint)
+                } else if (result.code != 1) {
+                    alert(MsgError)
+                }
+            })
+        }
+        function appendBubble(rid, float) {
+            var tpl = $("#_tplRpBubble").html()
+            tpl = tpl.replace("$FLOAT$", float)
+            tpl = tpl.replace("$RID$", rid)
+            $(".room-message").append(tpl)
+        }
+        function appendMessage(message) {
+            var tpl = $("#_tplMessage").html()
+            tpl = tpl.replace("$MESSAGE$", "<p>" + message + "</p>")
+            $(".room-message").append(tpl)
+        }
+        function appendEndedPack(ended) {
+            for (const key in ended) {
+                var content = ""
+                var loss = ""
+                for (let index = 0; index < ended[key].length; index++) {
+                    var row = ended[key][index].split(",")
+                    if (index == 0) {
+                        content += row[0] + " 的红包被领完!<br>"
+                        loss = row[2]
+                        content += "【领取名单】"
+                    } else {
+                        if (row[2] == "true") {
+                            content += row[0] + " 踩雷了,损失了" + Utils.f2y(loss) + "金币"
+                        } else {
+                            content += row[0] + " 领到了" + Utils.f2y(row[1]) + "金币"
+                        }
+                    }
+                    content += "<br>"
+                }
+                appendMessage(content)
+            }
+        }
+    </script>
+</body>
+
+</html>

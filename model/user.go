@@ -19,6 +19,7 @@ type User struct {
     Phone string
     Email string
     Status uint `gorm:"not null;default:1"`
+    AgentID uint `gorm:"column:agent_id"`
     LastLoginTime *time.Time
     LastLoginIP string `gorm:"column:last_login_ip"`
     CreatedAt *time.Time
@@ -56,6 +57,13 @@ func (u *User) Create(rawPwd string) {
     if mysql.DBInstance().NewRecord(u) {
         mysql.DBInstance().Create(u)
     }
+}
+
+// CountAgent count user num agented by this user
+func (u *User) CountAgent(userID uint) uint {
+    var num uint
+    mysql.DBInstance().Where("agent_id=? AND status=1 AND is_deleted=0",userID).Table(u.TableName()).Count(&num)
+    return num
 }
 
 func randomString(length int) string {

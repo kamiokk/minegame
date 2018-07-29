@@ -11,11 +11,15 @@ func Routers() *gin.Engine {
     //controllers 
     groupUser := router.Group("/user")
     {
+        groupUser.GET("/isLogin",isLogin)
         groupUser.POST("/login",login)
         groupUser.POST("/logout",logout)
         groupUser.POST("/register",register)
         groupUser.POST("/info",userInfo)
         groupUser.GET("/checkAccountAvailable",checkAccountAvailable)
+        groupUser.GET("/balanceLog",balanceLog)
+        groupUser.GET("/stat",stat)
+        groupUser.POST("/agentCount",agentCount)
     }
 
     groupGame := router.Group("/game",checkLogin())
@@ -28,10 +32,6 @@ func Routers() *gin.Engine {
     //templates and static
     router.Static("/static", "./static")
     router.LoadHTMLGlob("./templates/*")
-    router.GET("/", render)
-    router.GET("/index.html", render)
-    router.GET("/register.html", render)
-    router.GET("/login.html", render)
-    router.GET("/test.html", render)
+    InitRender(router)
     return router
 }

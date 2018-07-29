@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, maximum-scale=0.5, user-scalable=no">
+    <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/index.css">
+</head>
+
+<body>
+    <div class="banner">
+        <span class="banner-back"><a href="index.html"></a></span>
+        游戏统计
+    </div>
+    <div class="stat-container container">
+        <div class="row">
+            <div class="stat-box col">
+                <div class="stat-box-top">总营收</div>
+                <div id="income" class="stat-box-bottom">￥0</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="stat-box col">
+                <div class="stat-box-top">抢红包数量</div>
+                <div id="gainCount" class="stat-box-bottom">0</div>
+            </div>
+            <div class="stat-box stat-box-black col">
+                <div class="stat-box-top">发红包数量</div>
+                <div id="giveCount" class="stat-box-bottom">0</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="stat-box col">
+                <div class="stat-box-top">抢红包总金额</div>
+                <div id="gainPoint" class="stat-box-bottom">￥0</div>
+            </div>
+            <div class="stat-box stat-box-black col">
+                <div class="stat-box-top">发红包总金额</div>
+                <div id="givePoint" class="stat-box-bottom">￥0</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="stat-box stat-box-black col">
+                <div class="stat-box-top">自己中雷次数</div>
+                <div id="loseTime" class="stat-box-bottom">0</div>
+            </div>
+            <div class="stat-box col">
+                <div class="stat-box-top">对手中雷次数</div>
+                <div id="winTime" class="stat-box-bottom">0</div>
+            </div>
+        </div>
+    </div>
+    <ul class="footer">
+        <li class="active">会员中心</li>
+        <li class=""><a href="account.html">帐号资金</a></li>
+        <li class=""><a href="room.html">游戏大厅</a></li>
+        <li class="">在线客服</li>
+        <li class="">
+            <a href="agent.html">我要代理</a>
+        </li>
+    </ul>
+    <script src="static/js/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/common.js"></script>
+    <script>
+        $(document).ready(function () {
+            if (location.protocol == "file:") return
+            API.userStat(function (result) {
+                if (result.code != 1) {
+                    location.href = "login.html"
+                } else {
+                    stat = result.stat
+                    if (stat.Income < 0) {
+                        $("#income").parent().addClass("stat-box-black");
+                    }
+                    $("#income").text("￥" + stat.Income)
+                    $("#gainCount").text(stat.GainCount)
+                    $("#giveCount").text(stat.GiveCount)
+                    $("#gainPoint").text("￥" + stat.GainPoint)
+                    $("#givePoint").text("￥" + stat.GivePoint)
+                    $("#winTime").text(stat.WinTime)
+                    $("#loseTime").text(stat.LoseTime)
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

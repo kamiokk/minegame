@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, maximum-scale=0.5, user-scalable=no">
+    <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/index.css">
+</head>
+
+<body>
+    <div class="banner">
+        <span class="banner-back">
+            <a href="index.html"></a>
+        </span>
+        收支记录
+    </div>
+    <ul class="balance-logs"></ul>
+    <ul class="footer">
+        <li class="active">会员中心</li>
+        <li class="">
+            <a href="account.html">帐号资金</a>
+        </li>
+        <li class="">
+            <a href="room.html">游戏大厅</a>
+        </li>
+        <li class="">在线客服</li>
+        <li class="">
+            <a href="agent.html">我要代理</a>
+        </li>
+    </ul>
+    <script src="static/js/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/common.js"></script>
+    <script>
+        var logTpl = '<li class="$CLASS$">$CONTENT$</li>'
+        var fullLogTpl = '<li class="$CLASS$"><span class="log-time">$TIME$</span>$EVENT$<span class="log-point">￥$POINT$</span></li>';
+        $(document).ready(function () {
+            if (location.protocol == "file:") return
+            API.isLogin(function(result) {
+                if (result.code != 1) {
+                    location.href = "login.html";
+                } else {
+                    appendLog()
+                }
+            })
+        })
+        var offset = 0
+        function loadMore(obj) {
+            $(obj).parent().remove()
+            appendLog()
+        }
+        function appendLog() {
+            API.balanceLog(offset,function (result) {
+                offset += 10
+                if (result.code != 1) {
+                    alert("加载失败")
+                } else {
+                    logs = result.logs
+                    if (logs == null || logs.length == 0) {
+                        var content = logTpl
+                        content = content.replace("$CONTENT$", "暂无记录")
+                        content = content.replace("$CLASS$", "no-more")
+                        $("ul.balance-logs").append(content)
+                    } else {
+                        var content = ""
+                        for (let index = 0; index < logs.length; index++) {
+                            var row = fullLogTpl
+                            row = row.replace("$EVENT$", logs[index].event)
+                            row = row.replace("$POINT$", logs[index].point)
+                            row = row.replace("$TIME$", logs[index].time)
+                            if (logs[index].point > 0) {
+                                row = row.replace("$CLASS$", "red")
+                            }
+                            content += row
+                        }
+                        if (result.last) {
+                            var row = logTpl
+                            row = row.replace("$CONTENT$", "没有更多了")
+                            row = row.replace("$CLASS$", "no-more")
+                            content += row
+                        } else {
+                            var row = logTpl
+                            row = row.replace("$CONTENT$", '<a onclick="loadMore(this)" href="javascript:void(0)">加载更多</a>')
+                            row = row.replace("$CLASS$", "more-log")
+                            content += row
+                        }
+                        $("ul.balance-logs").append(content)
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

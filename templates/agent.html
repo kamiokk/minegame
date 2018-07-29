@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{.title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, maximum-scale=0.5, user-scalable=no">
+    <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/index.css">
+</head>
+
+<body class="bg-f8">
+    <div class="banner">我要代理</div>
+
+    <div class="agent">
+        <div id="qrcode"></div>
+        <p>扫描该二维码注册的用户，将成为被您代理的用户。</p>
+        <p id="agentCount">您当前代理的用户数为：0</p>
+    </div>
+
+    <ul class="footer">
+        <li class="">
+            <a href="index.html">会员中心</a>
+        </li>
+        <li class="">
+            <a href="account.html">帐号资金</a>
+        </li>
+        <li class="">
+            <a href="room.html">游戏大厅</a>
+        </li>
+        <li class="">在线客服</li>
+        <li class="active">我要代理</li>
+    </ul>
+    <script src="static/js/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/4.1.1/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/qrcode.min.js"></script>
+    <script src="static/js/common.js"></script>
+    <script>
+        $(document).ready(function () {
+            var link = API.getHost() + "/register.html?agent="
+            if (location.protocol == "file:") {
+                link += "kamiokk"
+                new QRCode(document.getElementById("qrcode"), { text: link, width: 512, height: 512 })
+            } else {
+                API.userInfo(function (result) {
+                    if (result.code != 1) {
+                        location.href = "login.html"
+                    } else {
+                        link += result.account
+                        new QRCode(document.getElementById("qrcode"), { text: link, width: 512, height: 512 })
+                        API.agentCount(function (result) {
+                            if (result.code == 1) {
+                                $("#agentCount").text("您当前代理的用户数为：" + result.count)
+                            }
+                        })
+                    }
+                })
+            }
+        });
+    </script>
+</body>
+
+</html>

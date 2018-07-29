@@ -22,6 +22,15 @@ func (Point) TableName() string {
     return "mine_user_point"
 }
 
+// Create add record
+func (r *Point) Create() {
+	now := time.Now()
+    r.CreatedAt = &now
+    if mysql.DBInstance().NewRecord(r) {
+        mysql.DBInstance().Create(r)
+    }
+}
+
 // GetByUserID fetch point by ID
 func (p *Point) GetByUserID(id uint) {
     mysql.DBInstance().Where("user_id = ?", id).First(p)

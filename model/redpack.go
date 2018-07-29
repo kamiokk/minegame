@@ -10,6 +10,8 @@ type RedPack struct {
     ID uint
     UserID uint `gorm:"column:user_id"`
     Value float64
+    PlatformValue float64
+    AgentValue float64
     MineNumber uint
     Slice uint
     CreatedAt *time.Time

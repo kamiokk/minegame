@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>{{.title}}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=0.5, minimum-scale=0.5, user-scalable=no">
     <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="static/css/index.css">
 </head>
@@ -30,7 +30,7 @@
                 <input type="password" class="form-control" id="password" placeholder="密码由6-12位字母数字组成">
             </div>
         </div>
-        <button type="button" onclick="login()" class="btn btn-login">登录</button>
+        <button style="margin-top: 108px;" type="button" onclick="login()" class="btn btn-red">登录</button>
     </div>
 
     <ul class="footer">
@@ -40,9 +40,13 @@
         <li class="active">
             <a href="login.html">登录游戏</a>
         </li>
-        <li class="">游戏大厅</li>
+        <li class="">
+            <a href="room.html">游戏大厅</a>
+        </li>
         <li class="">在线客服</li>
-        <li class="">我要代理</li>
+        <li class="">
+            <a href="agent.html">我要代理</a>
+        </li>
     </ul>
 
     <script src="static/js/jquery.min.js"></script>
@@ -59,7 +63,6 @@
         function login() {
             API.login($("#account").val(), $("#password").val(), function (result) {
                 if (result.code == 1) {
-                    alert("登录成功！");
                     location.href = "index.html";
                 } else {
                     alert("帐号或密码错误");

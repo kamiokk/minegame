@@ -11,7 +11,7 @@
 </head>
 
 <body class="bg-f8">
-    <div class="banner">会员中心</div>
+    <div class="banner">账号资金</div>
 
     <div class="user-home">
         <div class="home-avatar">
@@ -24,18 +24,22 @@
         </div>
         <ul class="home-menu">
             <li>
-                <a href="stat.html">游戏统计<span class="r-arrow"></span></a>
+                <a href="stat.html">游戏统计
+                    <span class="r-arrow"></span>
+                </a>
             </li>
             <li>
-                <a href="balanceDetail.html">收支记录<span class="r-arrow"></span></a>
+                <a href="balanceDetail.html">收支记录
+                    <span class="r-arrow"></span>
+                </a>
             </li>
         </ul>
         <button type="button" onclick="logout()" class="btn btn-red">退出帐号</button>
     </div>
 
     <ul class="footer">
-        <li class="active">会员中心</li>
-        <li class=""><a href="account.html">帐号资金</a></li>
+        <li class=""><a href="index.html">会员中心</a></li>
+        <li class="active">帐号资金</li>
         <li class=""><a href="room.html">游戏大厅</a></li>
         <li class="">在线客服</li>
         <li class="">
@@ -50,18 +54,13 @@
             if (location.protocol == "file:") return
             API.userInfo(function (result) {
                 if (result.code != 1) {
-                    location.href = "login.html"
+                    location.href = "login.html";
                 } else {
-                    $("#userName").text(result.account)
-                    $("#point").text(result.point)
+                    $("#userName").text(result.account);
+                    $("#point").text(result.point);
                 }
-            })
-        })
-        function logout() {
-            API.logout(function (result) {
-                location.href = "login.html"
-            })
-        }
+            });
+        });
     </script>
 </body>
 
